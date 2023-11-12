@@ -26,8 +26,9 @@ APPROVED_ROLE_IDS = SETTINGS['APPROVED_ROLE_IDS']
 APPROVED_ROLES = [discord.Object(id=x) for x in APPROVED_ROLE_IDS]
 REJECTED_ROLE_IDS = SETTINGS['REJECTED_ROLE_IDS']
 REJECTED_ROLES = [discord.Object(id=x) for x in REJECTED_ROLE_IDS]
+QUESTIONS = SETTINGS['QUESTIONS']
 
-PROD = True
+SS13_FEATURES_ENABLED = SETTINGS['SS13_FEATURES_ENABLED']
 
 listToGrammar = lambda data : ", ".join(data[:-2] + [", and ".join(data[-2:])])
 
@@ -143,21 +144,18 @@ async def ccdb(interaction: discord.Interaction, ckey: str, page: Optional[int] 
 
 @client.tree.command(description="Displays a list of commands and how to use the bot.")
 async def help(interaction:discord.Interaction):
-    if PROD or interaction.guild.id == 342787099407155202:
-        await interaction.response.send_message(f"**Commands:**\n"
-                                                f"`/help` shows this message.\n"
-                                                f"`/register` begins the registration process.\n"
-                                                f"\n"
-                                                f"**FAQ:**\n"
-                                                f"\n"
-                                                f"Q: *Who should I direct technical questions to?*\n"
-                                                f"A: <@188796089380503555>.\n"
-                                                f"\n"
-                                                f"Q: *How can I help pay for the upkeep of the bot?*\n"
-                                                f"A: https://github.com/sponsors/hermaplusplus",
-                                                ephemeral=True)
-    else:
-        await interaction.response.send_message("This command isn't currently available in this server - check back later!", ephemeral=True)
+    await interaction.response.send_message(f"**Commands:**\n"
+                                            f"`/help` shows this message.\n"
+                                            f"`/register` begins the registration process.\n"
+                                            f"\n"
+                                            f"**FAQ:**\n"
+                                            f"\n"
+                                            f"Q: *Who should I direct technical questions to?*\n"
+                                            f"A: <@188796089380503555>.\n"
+                                            f"\n"
+                                            f"Q: *How can I help pay for the upkeep of the bot?*\n"
+                                            f"A: https://github.com/sponsors/hermaplusplus",
+                                            ephemeral=True)
 
 @client.tree.error
 async def on_app_command_error(interaction, error):
@@ -168,70 +166,76 @@ async def on_app_command_error(interaction, error):
         raise error
 
 class Reg(ui.Modal, title="Registration"):
-    ckey = ui.TextInput(label="What is your Ckey (BYOND username)?)",
-                            style=discord.TextStyle.short,
-                            placeholder="",
-                            max_length=100)
-    origin      = ui.TextInput(label="How did you find EnigmaTown?",
-                            style=discord.TextStyle.long,
-                            placeholder="",
-                            max_length=1000)
-    experience  = ui.TextInput(label="If invited by a friend, who are they?",
-                            style=discord.TextStyle.long,
-                            placeholder="",
-                            max_length=1000)
-    interest    = ui.TextInput(label="Why do you want to join EnigmaTown?",
-                            style=discord.TextStyle.long,
-                            placeholder="",
-                            max_length=1000)
-    agreement    = ui.TextInput(label="Do you agree to abide by the rules?",
-                            style=discord.TextStyle.short,
-                            placeholder="Yes",
-                            min_length=3,
-                            max_length=3)
+    q0 = ui.TextInput(label=QUESTIONS[0]['label'],
+                        style=discord.TextStyle.short if QUESTIONS[0]['style_short'] else discord.TextStyle.long,
+                        placeholder=QUESTIONS[0]['placeholder'],
+                        min_length=QUESTIONS[0]['min_length'],
+                        max_length=QUESTIONS[0]['max_length'])
+    q1 = ui.TextInput(label=QUESTIONS[1]['label'],
+                        style=discord.TextStyle.short if QUESTIONS[1]['style_short'] else discord.TextStyle.long,
+                        placeholder=QUESTIONS[1]['placeholder'],
+                        min_length=QUESTIONS[1]['min_length'],
+                        max_length=QUESTIONS[1]['max_length'])
+    q2 = ui.TextInput(label=QUESTIONS[2]['label'],
+                        style=discord.TextStyle.short if QUESTIONS[2]['style_short'] else discord.TextStyle.long,
+                        placeholder=QUESTIONS[2]['placeholder'],
+                        min_length=QUESTIONS[2]['min_length'],
+                        max_length=QUESTIONS[2]['max_length'])
+    q3 = ui.TextInput(label=QUESTIONS[3]['label'],
+                        style=discord.TextStyle.short if QUESTIONS[3]['style_short'] else discord.TextStyle.long,
+                        placeholder=QUESTIONS[3]['placeholder'],
+                        min_length=QUESTIONS[3]['min_length'],
+                        max_length=QUESTIONS[3]['max_length'])
+    q4 = ui.TextInput(label=QUESTIONS[4]['label'],
+                        style=discord.TextStyle.short if QUESTIONS[4]['style_short'] else discord.TextStyle.long,
+                        placeholder=QUESTIONS[4]['placeholder'],
+                        min_length=QUESTIONS[4]['min_length'],
+                        max_length=QUESTIONS[4]['max_length'])
 
     async def on_submit(self, interaction:discord.Interaction):
-        try:
-            playerData = getPlayerData(self.ckey.value)
-        except:
-            await interaction.response.send_message("The Ckey you specified couldn't be found.", ephemeral=True)
-            return
+        if SS13_FEATURES_ENABLED:
+            try:
+                playerData = getPlayerData(self.q0.value)
+            except:
+                await interaction.response.send_message("The Ckey you specified couldn't be found.", ephemeral=True)
+                return
         await interaction.response.send_message("Your registration has been submitted. Please await staff approval.", ephemeral=True)
-        ccdb = requests.get(f"https://centcom.melonmesa.com/ban/search/{self.ckey.value}")
         embs = []
-        #emb = discord.Embed(title=playerData['key'])
         emb = discord.Embed()
-        emb.add_field(name="Discord", value=f"{interaction.user.mention} `{interaction.user.name}`", inline=True)
-        emb.add_field(name="Ckey", value=f"`{playerData['ckey']}`", inline=True)
-        emb.add_field(name="How did you find EnigmaTown?", value=f"```{self.origin.value}```", inline=False)
-        emb.add_field(name="If invited by a friend, who are they?", value=f"```{self.experience.value}```", inline=False)
-        emb.add_field(name="Why do you want to join EnigmaTown?", value=f"```{self.interest.value}```", inline=False)
-        emb.add_field(name="Do you agree to abide by the rules?", value=f"```{self.agreement.value}```", inline=False)
-        #emb.add_field(name='\u200b', value='``` ```')
-        emb.add_field(name="Account Creation Date", value=f"<t:{str(int(time.mktime(datetime.strptime(playerData['joined'], '%Y-%m-%d').timetuple())))}:d> (<t:{str(int(time.mktime(datetime.strptime(playerData['joined'], '%Y-%m-%d').timetuple())))}:R>)", inline=False)
-        if ccdb.status_code == 200:
-            ccdbdata = ccdb.json()
-            if len(ccdbdata) == 0:
-                emb.add_field(name="CCDB Bans", value=f"No bans found on CCDB.", inline=False)
-            else:
-                activebans = 0
-                totalbans = 0
-                for ban in ccdbdata:
-                    if ban['active']:
-                        activebans += 1
-                    totalbans += 1
-                emb.add_field(name="CCDB Bans", value=f"[{activebans} active, {totalbans-activebans} expired bans found on CCDB.](https://centcom.melonmesa.com/viewer/view/{self.ckey.value})", inline=False)
-        await client.get_channel(REVIEW_CHANNEL_ID).send(embed=emb, view=Verification(interaction.user.id, self.ckey.value, self.origin.value, self.experience.value, self.interest.value, self.agreement.value))
+        emb.add_field(name="Discord", value=f"{interaction.user.mention}\n`{interaction.user.name}`", inline=True)
+        if SS13_FEATURES_ENABLED:
+            ccdb = requests.get(f"https://centcom.melonmesa.com/ban/search/{self.q0.value.replace(' ', '%20')}")
+            emb.add_field(name="Ckey", value=f"`{playerData['ckey']}`", inline=True)
+        emb.add_field(name=QUESTIONS[0]['label'], value=f"```{self.q0.value}```", inline=False)
+        emb.add_field(name=QUESTIONS[1]['label'], value=f"```{self.q1.value}```", inline=False)
+        emb.add_field(name=QUESTIONS[2]['label'], value=f"```{self.q2.value}```", inline=False)
+        emb.add_field(name=QUESTIONS[3]['label'], value=f"```{self.q3.value}```", inline=False)
+        emb.add_field(name=QUESTIONS[4]['label'], value=f"```{self.q4.value}```", inline=False)
+        if SS13_FEATURES_ENABLED:
+            emb.add_field(name="Ckey Creation Date", value=f"<t:{str(int(time.mktime(datetime.strptime(playerData['joined'], '%Y-%m-%d').timetuple())))}:d> (<t:{str(int(time.mktime(datetime.strptime(playerData['joined'], '%Y-%m-%d').timetuple())))}:R>)", inline=False)
+            if ccdb.status_code == 200:
+                ccdbdata = ccdb.json()
+                if len(ccdbdata) == 0:
+                    emb.add_field(name="CCDB Bans", value=f"No bans found on CCDB.", inline=False)
+                else:
+                    activebans = 0
+                    totalbans = 0
+                    for ban in ccdbdata:
+                        if ban['active']:
+                            activebans += 1
+                        totalbans += 1
+                    emb.add_field(name="CCDB Bans", value=f"[{activebans} active, {totalbans-activebans} expired bans found on CCDB.](https://centcom.melonmesa.com/viewer/view/{self.q0.value})", inline=False)
+        await client.get_channel(REVIEW_CHANNEL_ID).send(embed=emb, view=Verification(interaction.user.id, self.q0.value, self.q1.value, self.q2.value, self.q3.value, self.q4.value))
 
 class Verification(ui.View):
-    def __init__(self, uid, ckey, origin, experience, interest, agreement):
+    def __init__(self, uid, q0, q1, q2, q3, q4):
         super().__init__(timeout=None)
         self.uid = uid
-        self.ckey = ckey
-        self.origin = origin
-        self.experience = experience
-        self.interest = interest
-        self.agreement = agreement
+        self.q0 = q0
+        self.q1 = q1
+        self.q2 = q2
+        self.q3 = q3
+        self.q4 = q4
     
     @ui.button(label="Accept", style=discord.ButtonStyle.green, custom_id=f"accept")
     async def accept_callback(self, interaction: discord.Interaction, button: ui.Button):
@@ -248,7 +252,7 @@ class Verification(ui.View):
         self.remove_item(buttons[1])
         await interaction.followup.edit_message(interaction.message.id, view=self)
         await interaction.followup.send(f"✅ <@{self.uid}>'s registration approved by {interaction.user.mention}.")
-        os.system(f"echo {self.uid},{self.ckey} >> accountlinks.csv")
+        os.system(f"echo {self.uid},{self.q0} >> accountlinks.csv")
         self.stop()
 
     @ui.button(label="Reject", style=discord.ButtonStyle.red, custom_id=f"reject")
