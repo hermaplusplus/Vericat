@@ -27,8 +27,8 @@ APPROVED_ROLES = [discord.Object(id=x) for x in APPROVED_ROLE_IDS]
 REJECTED_ROLE_IDS = SETTINGS['REJECTED_ROLE_IDS']
 REJECTED_ROLES = [discord.Object(id=x) for x in REJECTED_ROLE_IDS]
 QUESTIONS = SETTINGS['QUESTIONS']
-
 SS13_FEATURES_ENABLED = SETTINGS['SS13_FEATURES_ENABLED']
+SS13_COMMAND_ROLE_IDS = SETTINGS['SS13_COMMAND_ROLE_IDS']
 
 listToGrammar = lambda data : ", ".join(data[:-2] + [", and ".join(data[-2:])])
 
@@ -60,87 +60,6 @@ async def on_ready():
             name="Psydon's Gate 3"
         )
     )
-
-"""
-@app_commands.checks.has_any_role(
-    342788067297329154,  # woof
-    1130594155597402172  # council
-)
-@client.tree.command(description="Shows the age of a BYOND account by Ckey.")
-async def ckey(interaction: discord.Interaction, ckey: str):
-    await interaction.response.defer(ephemeral=True)
-    if PROD or interaction.guild.id == 342787099407155202:
-        try:
-            playerData = getPlayerData(ckey)
-        except:
-            await interaction.followup.send("The Ckey you specified couldn't be found.", ephemeral=True)
-            return
-        ccdb = requests.get(f"https://centcom.melonmesa.com/ban/search/{ckey}")
-        embs = []
-        #emb = discord.Embed(title=playerData['key'])
-        emb = discord.Embed()
-        emb.add_field(name="Ckey", value=f"`{playerData['ckey']}`", inline=True)
-        emb.add_field(name="Account Creation Date", value=f"<t:{str(int(time.mktime(datetime.strptime(playerData['joined'], '%Y-%m-%d').timetuple())))}:d> (<t:{str(int(time.mktime(datetime.strptime(playerData['joined'], '%Y-%m-%d').timetuple())))}:R>)", inline=True)
-        if ccdb.status_code == 200:
-            ccdbdata = ccdb.json()
-            if len(ccdbdata) == 0:
-                emb.add_field(name="CCDB Bans", value=f"No bans found on CCDB.", inline=True)
-            else:
-                activebans = 0
-                totalbans = 0
-                for ban in ccdbdata:
-                    if ban['active']:
-                        activebans += 1
-                    totalbans += 1
-                emb.add_field(name="CCDB Bans", value=f"{activebans} active, {totalbans-activebans} expired bans found on CCDB.", inline=True)
-        embs.append(emb)
-        await interaction.followup.send(embeds=embs, ephemeral=True)
-    else:
-        await interaction.followup.send("This command isn't currently available in this server - check back later!", ephemeral=True)
-
-@app_commands.checks.has_any_role(
-    342788067297329154,  # woof
-    1130594155597402172  # council
-)
-@client.tree.command(description="Lists CCDB bans for a BYOND account by Ckey. Pagination begins at 1. Times displayed are in UTC.")
-async def ccdb(interaction: discord.Interaction, ckey: str, page: Optional[int] = 1):
-    await interaction.response.defer(ephemeral=True)
-    if PROD or interaction.guild.id == 342787099407155202:
-        try:
-            playerData = getPlayerData(ckey)
-        except:
-            await interaction.followup.send("The Ckey you specified couldn't be found.", ephemeral=True)
-            return
-        ccdb = requests.get(f"https://centcom.melonmesa.com/ban/search/{ckey}")
-        embs = []
-        #emb = discord.Embed(title=playerData['key'])
-        emb = discord.Embed()
-        if ccdb.status_code == 200:
-            ccdbdata = ccdb.json()
-            for ban in ccdbdata:
-                banstatus = "Active" if ban['active'] else "Expired"
-                if "unbannedBy" in ban.keys():
-                    banstatus = "Unbanned"
-                emb = discord.Embed(title=f"{ban['type']} Ban | {ban['sourceName']} | {banstatus}", description=f"{ban['reason']}", colour=(discord.Colour.from_rgb(108, 186, 67) if banstatus == "Active" else (discord.Colour.from_rgb(213, 167, 70) if banstatus == "Expired" else discord.Colour.from_rgb(84, 151, 224))))
-                emb.add_field(name="Banned", value=f"{ban['bannedOn'].replace('T',' ').replace('Z','')}", inline=True)
-                emb.add_field(name="Admin", value=f"{ban['bannedBy']}", inline=True)
-                if "expires" in ban.keys():
-                    emb.add_field(name="Expires", value=f"{ban['expires'].replace('T',' ').replace('Z','')}", inline=True)
-                if "banID" in ban.keys():
-                    emb.add_field(name="Original Ban ID", value=f"`{ban['banID']}`", inline=True)
-                if "unbannedBy" in ban.keys():
-                    emb.add_field(name="Unbanned By", value=f"{ban['unbannedBy']}", inline=True)
-                embs.append(emb)
-        if len(embs) == 0:
-            await interaction.followup.send(f"No bans found on CCDB for **`{ckey}`**.", embeds=embs, ephemeral=True)
-        if len(embs) > 0 and len(embs) <= 10:
-            await interaction.followup.send(f"{len(embs)} bans found on CCDB for **`{ckey}`**.", embeds=embs, ephemeral=True)
-        if len(embs) > 10:
-            maxpages = math.ceil(len(embs)/10)
-            await interaction.followup.send(f"{len(embs)} bans found on CCDB for **`{ckey}`**. Displaying page {min(page, maxpages)} of {maxpages}", embeds=(embs[(page-1)*10:page*10] if page <= maxpages else embs[(maxpages-1)*10:maxpages*10]), ephemeral=True)
-    else:
-        await interaction.followup.send("This command isn't currently available in this server - check back later!", ephemeral=True)
-"""
 
 @client.tree.command(description="Displays a list of commands and how to use the bot.")
 async def help(interaction:discord.Interaction):
@@ -282,5 +201,72 @@ async def register(interaction: discord.Interaction):
         return
     await interaction.response.send_modal(Reg())
 
+if SS13_FEATURES_ENABLED:
+    @app_commands.checks.has_any_role(APPROVER_ROLE_IDS)
+    @client.tree.command(description="Shows the age of a BYOND account by Ckey.")
+    async def ckey(interaction: discord.Interaction, ckey: str):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            playerData = getPlayerData(ckey)
+        except:
+            await interaction.followup.send("The Ckey you specified couldn't be found.", ephemeral=True)
+            return
+        ccdb = requests.get(f"https://centcom.melonmesa.com/ban/search/{ckey}")
+        embs = []
+        #emb = discord.Embed(title=playerData['key'])
+        emb = discord.Embed()
+        emb.add_field(name="Ckey", value=f"`{playerData['ckey']}`", inline=True)
+        emb.add_field(name="Account Creation Date", value=f"<t:{str(int(time.mktime(datetime.strptime(playerData['joined'], '%Y-%m-%d').timetuple())))}:d> (<t:{str(int(time.mktime(datetime.strptime(playerData['joined'], '%Y-%m-%d').timetuple())))}:R>)", inline=True)
+        if ccdb.status_code == 200:
+            ccdbdata = ccdb.json()
+            if len(ccdbdata) == 0:
+                emb.add_field(name="CCDB Bans", value=f"No bans found on CCDB.", inline=True)
+            else:
+                activebans = 0
+                totalbans = 0
+                for ban in ccdbdata:
+                    if ban['active']:
+                        activebans += 1
+                    totalbans += 1
+                emb.add_field(name="CCDB Bans", value=f"{activebans} active, {totalbans-activebans} expired bans found on CCDB.", inline=True)
+        embs.append(emb)
+        await interaction.followup.send(embeds=embs, ephemeral=True)
+    
+    @app_commands.checks.has_any_role(APPROVER_ROLE_IDS)
+    @client.tree.command(description="Lists CCDB bans for a BYOND account by Ckey. Pagination begins at 1. Times displayed are in UTC.")
+    async def ccdb(interaction: discord.Interaction, ckey: str, page: Optional[int] = 1):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            playerData = getPlayerData(ckey)
+        except:
+            await interaction.followup.send("The Ckey you specified couldn't be found.", ephemeral=True)
+            return
+        ccdb = requests.get(f"https://centcom.melonmesa.com/ban/search/{ckey}")
+        embs = []
+        #emb = discord.Embed(title=playerData['key'])
+        emb = discord.Embed()
+        if ccdb.status_code == 200:
+            ccdbdata = ccdb.json()
+            for ban in ccdbdata:
+                banstatus = "Active" if ban['active'] else "Expired"
+                if "unbannedBy" in ban.keys():
+                    banstatus = "Unbanned"
+                emb = discord.Embed(title=f"{ban['type']} Ban | {ban['sourceName']} | {banstatus}", description=f"{ban['reason']}", colour=(discord.Colour.from_rgb(108, 186, 67) if banstatus == "Active" else (discord.Colour.from_rgb(213, 167, 70) if banstatus == "Expired" else discord.Colour.from_rgb(84, 151, 224))))
+                emb.add_field(name="Banned", value=f"{ban['bannedOn'].replace('T',' ').replace('Z','')}", inline=True)
+                emb.add_field(name="Admin", value=f"{ban['bannedBy']}", inline=True)
+                if "expires" in ban.keys():
+                    emb.add_field(name="Expires", value=f"{ban['expires'].replace('T',' ').replace('Z','')}", inline=True)
+                if "banID" in ban.keys():
+                    emb.add_field(name="Original Ban ID", value=f"`{ban['banID']}`", inline=True)
+                if "unbannedBy" in ban.keys():
+                    emb.add_field(name="Unbanned By", value=f"{ban['unbannedBy']}", inline=True)
+                embs.append(emb)
+        if len(embs) == 0:
+            await interaction.followup.send(f"No bans found on CCDB for **`{ckey}`**.", embeds=embs, ephemeral=True)
+        if len(embs) > 0 and len(embs) <= 10:
+            await interaction.followup.send(f"{len(embs)} bans found on CCDB for **`{ckey}`**.", embeds=embs, ephemeral=True)
+        if len(embs) > 10:
+            maxpages = math.ceil(len(embs)/10)
+            await interaction.followup.send(f"{len(embs)} bans found on CCDB for **`{ckey}`**. Displaying page {min(page, maxpages)} of {maxpages}", embeds=(embs[(page-1)*10:page*10] if page <= maxpages else embs[(maxpages-1)*10:maxpages*10]), ephemeral=True)
+
 client.run(BOT_TOKEN)
-#print(SETTINGS['TOKEN'])
