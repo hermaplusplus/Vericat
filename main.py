@@ -15,6 +15,10 @@ SETTINGS = json.load(open("settings.json", "r"))
 
 BOT_TOKEN = SETTINGS['BOT_TOKEN']
 PRIORITY_GUILDS = [discord.Object(id=x) for x in SETTINGS['PRIORITY_GUILDS']]
+ACTIVITY_TYPE = SETTINGS['ACTIVITY_TYPE']
+ACTIVITY_NAME = SETTINGS['ACTIVITY_NAME']
+HELP_DESCRIPTION = SETTINGS['HELP_DESCRIPTION']
+HELP_MESSAGE = SETTINGS['HELP_MESSAGE']
 APPLICATION_CHANNEL_ID = SETTINGS['APPLICATION_CHANNEL_ID']
 APPLICATION_CHANNEL = discord.Object(id=APPLICATION_CHANNEL_ID)
 REVIEW_CHANNEL_ID = SETTINGS['REVIEW_CHANNEL_ID']
@@ -56,12 +60,12 @@ async def on_ready():
     print(f"Logged in as {client.user} (ID: {client.user.id})")
     await client.change_presence(
         activity=discord.Activity(
-            type=discord.ActivityType.playing,
-            name="Psydon's Gate 3"
+            type=ACTIVITY_TYPE, #discord.ActivityType.x enum
+            name=ACTIVITY_NAME
         )
     )
 
-@client.tree.command(description="Displays a list of commands and how to use the bot.")
+@client.tree.command(description=HELP_DESCRIPTION)
 async def help(interaction:discord.Interaction):
     await interaction.response.send_message(f"**Commands:**\n"
                                             f"`/help` shows this message.\n"
@@ -231,7 +235,7 @@ if SS13_FEATURES_ENABLED:
                 emb.add_field(name="CCDB Bans", value=f"{activebans} active, {totalbans-activebans} expired bans found on CCDB.", inline=True)
         embs.append(emb)
         await interaction.followup.send(embeds=embs, ephemeral=True)
-    
+
     @app_commands.checks.has_any_role(APPROVER_ROLE_IDS)
     @client.tree.command(description="Lists CCDB bans for a BYOND account by Ckey. Pagination begins at 1. Times displayed are in UTC.")
     async def ccdb(interaction: discord.Interaction, ckey: str, page: Optional[int] = 1):
