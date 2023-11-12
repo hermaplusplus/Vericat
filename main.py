@@ -2,39 +2,34 @@ import discord
 from discord import app_commands
 from discord import ui
 from discord import utils
-
 from typing import Optional
-
 from datetime import datetime
-
 import time
-
 import json
-
 import requests
-
 import math
-
 import os
+from byond2json import player2dict as getPlayerData
 
 SETTINGS = json.load(open("settings.json", "r"))
 
-from byond2json import player2dict as getPlayerData
-
-PRIORITY_GUILDS = [discord.Object(id=342787099407155202), discord.Object(id=1167235329951027291)]
-#PRIORITY_GUILDS = [discord.Object(id=342787099407155202)]
-VERIFICATION_CHANNEL_ID = 1172294781850898432
-VERIFICATION_CHANNEL = discord.Object(id=VERIFICATION_CHANNEL_ID)
-VERIFICATION_QUEUE_ID = 1171888348948877443
-VERIFICATION_QUEUE = discord.Object(id=1171888348948877443)
-HIGH_STAFF_REFER = "Dungeon Masters"
-HIGH_STAFF_ROLE_ID = 1169980778919231669
-OTHER_APPROVER_REFER = "Chatmods"
-OTHER_APPROVER_ROLE_ID = 1167969157053161522
-APPROVED_ROLE_ID = 1172295904229851229
-REJECT_ROLE_ID = 1168480230638358538
+BOT_TOKEN = SETTINGS['BOT_TOKEN']
+PRIORITY_GUILDS = [discord.Object(id=x) for x in SETTINGS['PRIORITY_GUILDS']]
+APPLICATION_CHANNEL_ID = SETTINGS['APPLICATION_CHANNEL_ID']
+APPLICATION_CHANNEL = discord.Object(id=APPLICATION_CHANNEL_ID)
+REVIEW_CHANNEL_ID = SETTINGS['REVIEW_CHANNEL_ID']
+REVIEW_CHANNEL = discord.Object(id=REVIEW_CHANNEL_ID)
+APPROVER_ROLE_NAMES = [i[0] for i in SETTINGS['APPROVER_ROLES']]
+APPROVER_ROLE_NAMES_STRING = ", ".join(APPROVER_ROLE_NAMES[:-2] + [", and ".join(APPROVER_ROLE_NAMES[-2:])])
+APPROVER_ROLE_IDS = [i[1] for i in SETTINGS['APPROVER_ROLES']]
+APPROVED_ROLE_IDS = SETTINGS['APPROVED_ROLE_IDS']
+APPROVED_ROLES = [discord.Object(id=x) for x in APPROVED_ROLE_IDS]
+REJECTED_ROLE_IDS = SETTINGS['REJECTED_ROLE_IDS']
+REJECTED_ROLES = [discord.Object(id=x) for x in REJECTED_ROLE_IDS]
 
 PROD = True
+
+listToGrammar = lambda data : ", ".join(data[:-2] + [", and ".join(data[-2:])])
 
 class Client(discord.Client):
 
@@ -206,7 +201,7 @@ class Reg(ui.Modal, title="Registration"):
         embs = []
         #emb = discord.Embed(title=playerData['key'])
         emb = discord.Embed()
-        emb.add_field(name="Discord", value=f"{interaction.user.mention}", inline=True)
+        emb.add_field(name="Discord", value=f"{interaction.user.mention} `{interaction.user.name}`", inline=True)
         emb.add_field(name="Ckey", value=f"`{playerData['ckey']}`", inline=True)
         emb.add_field(name="How did you find EnigmaTown?", value=f"```{self.origin.value}```", inline=False)
         emb.add_field(name="If invited by a friend, who are they?", value=f"```{self.experience.value}```", inline=False)
@@ -226,7 +221,7 @@ class Reg(ui.Modal, title="Registration"):
                         activebans += 1
                     totalbans += 1
                 emb.add_field(name="CCDB Bans", value=f"[{activebans} active, {totalbans-activebans} expired bans found on CCDB.](https://centcom.melonmesa.com/viewer/view/{self.ckey.value})", inline=False)
-        await client.get_channel(VERIFICATION_QUEUE_ID).send(embed=emb, view=Verification(interaction.user.id, self.ckey.value, self.origin.value, self.experience.value, self.interest.value, self.agreement.value))
+        await client.get_channel(REVIEW_CHANNEL_ID).send(embed=emb, view=Verification(interaction.user.id, self.ckey.value, self.origin.value, self.experience.value, self.interest.value, self.agreement.value))
 
 class Verification(ui.View):
     def __init__(self, uid, ckey, origin, experience, interest, agreement):
@@ -241,11 +236,12 @@ class Verification(ui.View):
     @ui.button(label="Accept", style=discord.ButtonStyle.green, custom_id=f"accept")
     async def accept_callback(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.defer()
-        if not ( (HIGH_STAFF_ROLE_ID in [r.id for r in interaction.user.roles]) or (OTHER_APPROVER_ROLE_ID in [r.id for r in interaction.user.roles]) ):
-            await interaction.followup.send(f"Only {HIGH_STAFF_REFER} and {OTHER_APPROVER_REFER} can approve registrations.", ephemeral=True)
+        if not any(item in APPROVER_ROLE_IDS for item in [r.id for r in interaction.user.roles]):
+            await interaction.followup.send(f"Only {APPROVER_ROLE_NAMES_STRING} can approve registrations.", ephemeral=True)
             return
         u = interaction.guild.get_member(self.uid)
-        await u.add_roles(discord.Object(APPROVED_ROLE_ID))
+        if len(APPROVED_ROLES) > 0:
+            await u.add_roles(APPROVED_ROLES)
         buttons = [b for b in self.children]
         buttons[0].disabled = True
         buttons[0].label = "Accepted"
@@ -258,11 +254,12 @@ class Verification(ui.View):
     @ui.button(label="Reject", style=discord.ButtonStyle.red, custom_id=f"reject")
     async def reject_callback(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.defer()
-        if not ( (HIGH_STAFF_ROLE_ID in [r.id for r in interaction.user.roles]) or (OTHER_APPROVER_ROLE_ID in [r.id for r in interaction.user.roles]) ):
-            await interaction.followup.send(f"Only {HIGH_STAFF_REFER} and {OTHER_APPROVER_REFER} can reject registrations.", ephemeral=True)
+        if not any(item in APPROVER_ROLE_IDS for item in [r.id for r in interaction.user.roles]):
+            await interaction.followup.send(f"Only {APPROVER_ROLE_NAMES_STRING} can reject registrations.", ephemeral=True)
             return
         u = interaction.guild.get_member(self.uid)
-        await u.add_roles(discord.Object(REJECT_ROLE_ID))
+        if len(REJECTED_ROLES) > 0:
+            await u.add_roles(REJECTED_ROLES)
         buttons = [b for b in self.children]
         buttons[1].disabled = True
         buttons[1].label = "Rejected"
@@ -273,13 +270,13 @@ class Verification(ui.View):
 
 @client.tree.command(description="Fill out the registration form. This will be reviewed by staff.")
 async def register(interaction: discord.Interaction):
-    if APPROVED_ROLE_ID in [r.id for r in interaction.user.roles]:
+    if any(item in APPROVED_ROLE_IDS for item in [r.id for r in interaction.user.roles]):
         await interaction.response.send_message("Approved members cannot use this command.", ephemeral=True)
         return
-    if interaction.channel.id not in [381573551200796672, VERIFICATION_CHANNEL_ID]:
-        await interaction.response.send_message(f"This command can only be used in <#{VERIFICATION_CHANNEL_ID}>.", ephemeral=True)
+    if interaction.channel.id not in [381573551200796672, APPLICATION_CHANNEL_ID]:
+        await interaction.response.send_message(f"This command can only be used in <#{APPLICATION_CHANNEL_ID}>.", ephemeral=True)
         return
     await interaction.response.send_modal(Reg())
 
-client.run(SETTINGS['TOKEN'])
+client.run(BOT_TOKEN)
 #print(SETTINGS['TOKEN'])
