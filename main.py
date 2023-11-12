@@ -147,7 +147,7 @@ class Reg(ui.Modal, title="Registration"):
                         if ban['active']:
                             activebans += 1
                         totalbans += 1
-                    emb.add_field(name="CCDB Bans", value=f"[{activebans} active, {totalbans-activebans} expired bans found on CCDB.](https://centcom.melonmesa.com/viewer/view/{self.q0.value})", inline=False)
+                    emb.add_field(name="CCDB Bans", value=f"[{activebans} active, {totalbans-activebans} expired bans found on CCDB.](https://centcom.melonmesa.com/viewer/view/{self.q0.value.replace(' ', '%20')})", inline=False)
         await client.get_channel(REVIEW_CHANNEL_ID).send(embed=emb, view=Verification(interaction.user.id, self.q0.value, self.q1.value, self.q2.value, self.q3.value, self.q4.value))
 
 class Verification(ui.View):
@@ -215,7 +215,7 @@ if SS13_FEATURES_ENABLED:
         except:
             await interaction.followup.send("The Ckey you specified couldn't be found.", ephemeral=True)
             return
-        ccdb = requests.get(f"https://centcom.melonmesa.com/ban/search/{ckey}")
+        ccdb = requests.get(f"https://centcom.melonmesa.com/ban/search/{ckey.replace(' ', '%20')}")
         embs = []
         #emb = discord.Embed(title=playerData['key'])
         emb = discord.Embed()
@@ -245,7 +245,7 @@ if SS13_FEATURES_ENABLED:
         except:
             await interaction.followup.send("The Ckey you specified couldn't be found.", ephemeral=True)
             return
-        ccdb = requests.get(f"https://centcom.melonmesa.com/ban/search/{ckey}")
+        ccdb = requests.get(f"https://centcom.melonmesa.com/ban/search/{ckey.replace(' ', '%20')}")
         embs = []
         #emb = discord.Embed(title=playerData['key'])
         emb = discord.Embed()
